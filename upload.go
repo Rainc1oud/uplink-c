@@ -6,6 +6,8 @@ package main
 // #include "uplink_definitions.h"
 import "C"
 import (
+	"fmt"
+	"os"
 	"reflect"
 	"time"
 	"unsafe"
@@ -17,7 +19,10 @@ import (
 type Upload struct {
 	scope
 	upload *uplink.Upload
+    logfile *os.File
 }
+
+const UPLINK_LOG = "UPLINK_LOG"
 
 // uplink_upload_object starts an upload to the specified key.
 //
@@ -54,15 +59,36 @@ func uplink_upload_object(project *C.UplinkProject, bucket_name, object_key *C.u
 		}
 	}
 
+	var logfile *os.File
+    var err error
+	uplinklog := os.Getenv(UPLINK_LOG)
+	if uplinklog != "" {
+        logfile, err = os.OpenFile(uplinklog, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+        if err != nil {
+            return C.UplinkUploadResult{
+				error: mallocError(err),
+			}
+        }
+        defer logfile.Close()
+    }
+
 	upload, err := proj.UploadObject(scope.ctx, C.GoString(bucket_name), C.GoString(object_key), opts)
 	if err != nil {
+		if logfile != nil {
+			_, err := logfile.WriteString(fmt.Sprintf("%+v", err))
+			if err != nil {
+				return C.UplinkUploadResult{
+					error: mallocError(err),
+				}
+			}
+		}
 		return C.UplinkUploadResult{
 			error: mallocError(err),
 		}
 	}
 
 	return C.UplinkUploadResult{
-		upload: (*C.UplinkUpload)(mallocHandle(universe.Add(&Upload{scope, upload}))),
+		upload: (*C.UplinkUpload)(mallocHandle(universe.Add(&Upload{scope, upload, logfile}))),
 	}
 }
 
@@ -81,6 +107,14 @@ func uplink_upload_write(upload *C.UplinkUpload, bytes unsafe.Pointer, length C.
 
 	ilength, ok := safeConvertToInt(length)
 	if !ok {
+		if up.logfile != nil {
+			_, err := up.logfile.WriteString(fmt.Sprintf("%+v", err))
+			if err != nil {
+				return C.UplinkWriteResult{
+					error: mallocError(err),
+				}
+			}
+		}
 		return C.UplinkWriteResult{
 			error: mallocError(ErrInvalidArg.New("length too large")),
 		}
@@ -93,6 +127,17 @@ func uplink_upload_write(upload *C.UplinkUpload, bytes unsafe.Pointer, length C.
 	hbuf.Cap = ilength
 
 	n, err := up.upload.Write(buf)
+	if err != nil {
+		if up.logfile != nil {
+			_, err := up.logfile.WriteString(fmt.Sprintf("%+v", err))
+			if err != nil {
+				return C.UplinkWriteResult{
+					error: mallocError(err),
+				}
+			}
+		}
+	}
+
 	return C.UplinkWriteResult{
 		bytes_written: C.size_t(n),
 		error:         mallocError(err),
@@ -109,6 +154,14 @@ func uplink_upload_commit(upload *C.UplinkUpload) *C.UplinkError {
 	}
 
 	err := up.upload.Commit()
+	if err != nil {
+		if up.logfile != nil {
+			_, err := up.logfile.WriteString(fmt.Sprintf("%+v", err))
+			if err != nil {
+				return mallocError(err),
+			}
+		}
+	}
 	return mallocError(err)
 }
 
@@ -122,6 +175,14 @@ func uplink_upload_abort(upload *C.UplinkUpload) *C.UplinkError {
 	}
 
 	err := up.upload.Abort()
+	if err != nil {
+		if up.logfile != nil {
+			_, err := up.logfile.WriteString(fmt.Sprintf("%+v", err))
+			if err != nil {
+				return mallocError(err),
+			}
+		}
+	}
 	return mallocError(err)
 }
 
