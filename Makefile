@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-SHELL = /bin/bash -O globstar
+SHELL = bash -O globstar
 
 DESTDIR ?= /usr/local
 GPL2 ?= false
