@@ -38,3 +38,5 @@ resource.syso
 
 go-gpl2.mod
 go-gpl2.sum
+
+.direnv
