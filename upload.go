@@ -107,14 +107,6 @@ func uplink_upload_write(upload *C.UplinkUpload, bytes unsafe.Pointer, length C.
 
 	ilength, ok := safeConvertToInt(length)
 	if !ok {
-		if up.logfile != nil {
-			_, err := up.logfile.WriteString(fmt.Sprintf("%+v", err))
-			if err != nil {
-				return C.UplinkWriteResult{
-					error: mallocError(err),
-				}
-			}
-		}
 		return C.UplinkWriteResult{
 			error: mallocError(ErrInvalidArg.New("length too large")),
 		}
@@ -158,7 +150,7 @@ func uplink_upload_commit(upload *C.UplinkUpload) *C.UplinkError {
 		if up.logfile != nil {
 			_, err := up.logfile.WriteString(fmt.Sprintf("%+v", err))
 			if err != nil {
-				return mallocError(err),
+				return mallocError(err)
 			}
 		}
 	}
@@ -179,7 +171,7 @@ func uplink_upload_abort(upload *C.UplinkUpload) *C.UplinkError {
 		if up.logfile != nil {
 			_, err := up.logfile.WriteString(fmt.Sprintf("%+v", err))
 			if err != nil {
-				return mallocError(err),
+				return mallocError(err)
 			}
 		}
 	}
