@@ -75,7 +75,7 @@ func uplink_upload_object(project *C.UplinkProject, bucket_name, object_key *C.u
 	upload, err := proj.UploadObject(scope.ctx, C.GoString(bucket_name), C.GoString(object_key), opts)
 	if err != nil {
 		if logfile != nil {
-			_, err := logfile.WriteString(fmt.Sprintf("%+v", err))
+			_, err := logfile.WriteString(fmt.Sprintf("%+v\n", err))
 			if err != nil {
 				return C.UplinkUploadResult{
 					error: mallocError(err),
@@ -88,7 +88,7 @@ func uplink_upload_object(project *C.UplinkProject, bucket_name, object_key *C.u
 	}
 
 	if logfile != nil {
-		_, err := logfile.WriteString(fmt.Sprintf("Created upload object for object key '%s'. Target bucket: '%s'", C.GoString(object_key), C.GoString(bucket_name)))
+		_, err := logfile.WriteString(fmt.Sprintf("Created upload object for object key '%s'. Target bucket: '%s'\n", C.GoString(object_key), C.GoString(bucket_name)))
 		if err != nil {
 			return C.UplinkUploadResult{
 				error: mallocError(err),
@@ -130,7 +130,7 @@ func uplink_upload_write(upload *C.UplinkUpload, bytes unsafe.Pointer, length C.
 	n, err := up.upload.Write(buf)
 	if err != nil {
 		if up.logfile != nil {
-			_, err := up.logfile.WriteString(fmt.Sprintf("%+v", err))
+			_, err := up.logfile.WriteString(fmt.Sprintf("%+v\n", err))
 			if err != nil {
 				return C.UplinkWriteResult{
 					error: mallocError(err),
@@ -140,7 +140,7 @@ func uplink_upload_write(upload *C.UplinkUpload, bytes unsafe.Pointer, length C.
 	}
 
 	if up.logfile != nil {
-		_, err := up.logfile.WriteString(fmt.Sprintf("Uploaded '%d' bytes", ilength))
+		_, err := up.logfile.WriteString(fmt.Sprintf("Uploaded '%d' bytes\n", ilength))
 		if err != nil {
 			return C.UplinkWriteResult{
 				error: mallocError(err),
