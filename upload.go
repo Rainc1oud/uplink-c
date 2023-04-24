@@ -142,7 +142,7 @@ func uplink_upload_write(upload *C.UplinkUpload, bytes unsafe.Pointer, length C.
 	if up.logfile != nil {
 		_, err := up.logfile.WriteString(fmt.Sprintf("Uploaded '%d' bytes", ilength))
 		if err != nil {
-			return C.UplinkUploadResult{
+			return C.UplinkWriteResult{
 				error: mallocError(err),
 			}
 		}
