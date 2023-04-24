@@ -87,6 +87,15 @@ func uplink_upload_object(project *C.UplinkProject, bucket_name, object_key *C.u
 		}
 	}
 
+	if logfile != nil {
+		_, err := logfile.WriteString(fmt.Sprintf("Created upload object for object key '%s'. Target bucket: '%s'", C.GoString(object_key), C.GoString(bucket_name)))
+		if err != nil {
+			return C.UplinkUploadResult{
+				error: mallocError(err),
+			}
+		}
+	}
+
 	return C.UplinkUploadResult{
 		upload: (*C.UplinkUpload)(mallocHandle(universe.Add(&Upload{scope, upload, logfile}))),
 	}
@@ -126,6 +135,15 @@ func uplink_upload_write(upload *C.UplinkUpload, bytes unsafe.Pointer, length C.
 				return C.UplinkWriteResult{
 					error: mallocError(err),
 				}
+			}
+		}
+	}
+
+	if up.logfile != nil {
+		_, err := up.logfile.WriteString(fmt.Sprintf("Uploaded '%d' bytes", ilength))
+		if err != nil {
+			return C.UplinkUploadResult{
+				error: mallocError(err),
 			}
 		}
 	}
