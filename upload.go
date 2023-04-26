@@ -33,7 +33,6 @@ func uplink_log_file() *os.File {
         if err != nil {
             return nil
         }
-        defer logfile.Close()
     }
 	return logfile
 }
@@ -43,6 +42,9 @@ func uplink_log_file() *os.File {
 //export uplink_upload_object
 func uplink_upload_object(project *C.UplinkProject, bucket_name, object_key *C.uplink_const_char, options *C.UplinkUploadOptions) C.UplinkUploadResult { //nolint:golint
 	logfile := uplink_log_file()
+	if logfile != nil {
+		defer logfile.Close()
+	}
 
 	if project == nil {
 		if logfile != nil {
@@ -143,6 +145,9 @@ func uplink_upload_object(project *C.UplinkProject, bucket_name, object_key *C.u
 //export uplink_upload_write
 func uplink_upload_write(upload *C.UplinkUpload, bytes unsafe.Pointer, length C.size_t) C.UplinkWriteResult {
 	logfile := uplink_log_file()
+	if logfile != nil {
+		defer logfile.Close()
+	}
 
 	up, ok := universe.Get(upload._handle).(*Upload)
 	if !ok {
@@ -212,6 +217,9 @@ func uplink_upload_write(upload *C.UplinkUpload, bytes unsafe.Pointer, length C.
 //export uplink_upload_commit
 func uplink_upload_commit(upload *C.UplinkUpload) *C.UplinkError {
 	logfile := uplink_log_file()
+	if logfile != nil {
+		defer logfile.Close()
+	}
 
 	up, ok := universe.Get(upload._handle).(*Upload)
 	if !ok {
@@ -241,6 +249,9 @@ func uplink_upload_commit(upload *C.UplinkUpload) *C.UplinkError {
 //export uplink_upload_abort
 func uplink_upload_abort(upload *C.UplinkUpload) *C.UplinkError {
 	logfile := uplink_log_file()
+	if logfile != nil {
+		defer logfile.Close()
+	}
 
 	up, ok := universe.Get(upload._handle).(*Upload)
 	if !ok {
@@ -270,6 +281,9 @@ func uplink_upload_abort(upload *C.UplinkUpload) *C.UplinkError {
 //export uplink_upload_info
 func uplink_upload_info(upload *C.UplinkUpload) C.UplinkObjectResult {
 	logfile := uplink_log_file()
+	if logfile != nil {
+		defer logfile.Close()
+	}
 
 	up, ok := universe.Get(upload._handle).(*Upload)
 	if !ok {
@@ -297,6 +311,9 @@ func uplink_upload_info(upload *C.UplinkUpload) C.UplinkObjectResult {
 //export uplink_upload_set_custom_metadata
 func uplink_upload_set_custom_metadata(upload *C.UplinkUpload, custom C.UplinkCustomMetadata) *C.UplinkError {
 	logfile := uplink_log_file()
+	if logfile != nil {
+		defer logfile.Close()
+	}
 
 	up, ok := universe.Get(upload._handle).(*Upload)
 	if !ok {
