@@ -24,21 +24,61 @@ type Upload struct {
 
 const UPLINK_LOG = "UPLINK_LOG"
 
+func uplink_log_file() *os.File {
+	var logfile *os.File
+    var err error
+	uplinklog := os.Getenv(UPLINK_LOG)
+	if uplinklog != "" {
+        logfile, err = os.OpenFile(uplinklog, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+        if err != nil {
+            return nil
+        }
+        defer logfile.Close()
+    }
+	return logfile
+}
+
 // uplink_upload_object starts an upload to the specified key.
 //
 //export uplink_upload_object
 func uplink_upload_object(project *C.UplinkProject, bucket_name, object_key *C.uplink_const_char, options *C.UplinkUploadOptions) C.UplinkUploadResult { //nolint:golint
+	logfile := uplink_log_file()
+
 	if project == nil {
+		if logfile != nil {
+			_, err := logfile.WriteString(fmt.Sprintf("uplink_upload_object: project is nil\n"))
+			if err != nil {
+				return C.UplinkUploadResult{
+					error: mallocError(err),
+				}
+			}
+		}
 		return C.UplinkUploadResult{
 			error: mallocError(ErrNull.New("project")),
 		}
 	}
 	if bucket_name == nil {
+		if logfile != nil {
+			_, err := logfile.WriteString(fmt.Sprintf("uplink_upload_object: bucket_name is nil\n"))
+			if err != nil {
+				return C.UplinkUploadResult{
+					error: mallocError(err),
+				}
+			}
+		}
 		return C.UplinkUploadResult{
 			error: mallocError(ErrNull.New("bucket_name")),
 		}
 	}
 	if object_key == nil {
+		if logfile != nil {
+			_, err := logfile.WriteString(fmt.Sprintf("uplink_upload_object: object_key is nil\n"))
+			if err != nil {
+				return C.UplinkUploadResult{
+					error: mallocError(err),
+				}
+			}
+		}
 		return C.UplinkUploadResult{
 			error: mallocError(ErrNull.New("object_key")),
 		}
@@ -46,6 +86,14 @@ func uplink_upload_object(project *C.UplinkProject, bucket_name, object_key *C.u
 
 	proj, ok := universe.Get(project._handle).(*Project)
 	if !ok {
+		if logfile != nil {
+			_, err := logfile.WriteString(fmt.Sprintf("uplink_upload_object: failed to retrieve project\n"))
+			if err != nil {
+				return C.UplinkUploadResult{
+					error: mallocError(err),
+				}
+			}
+		}
 		return C.UplinkUploadResult{
 			error: mallocError(ErrInvalidHandle.New("project")),
 		}
@@ -58,19 +106,6 @@ func uplink_upload_object(project *C.UplinkProject, bucket_name, object_key *C.u
 			opts.Expires = time.Unix(int64(options.expires), 0)
 		}
 	}
-
-	var logfile *os.File
-    var err error
-	uplinklog := os.Getenv(UPLINK_LOG)
-	if uplinklog != "" {
-        logfile, err = os.OpenFile(uplinklog, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
-        if err != nil {
-            return C.UplinkUploadResult{
-				error: mallocError(err),
-			}
-        }
-        defer logfile.Close()
-    }
 
 	upload, err := proj.UploadObject(scope.ctx, C.GoString(bucket_name), C.GoString(object_key), opts)
 	if err != nil {
@@ -107,8 +142,18 @@ func uplink_upload_object(project *C.UplinkProject, bucket_name, object_key *C.u
 //
 //export uplink_upload_write
 func uplink_upload_write(upload *C.UplinkUpload, bytes unsafe.Pointer, length C.size_t) C.UplinkWriteResult {
+	logfile := uplink_log_file()
+
 	up, ok := universe.Get(upload._handle).(*Upload)
 	if !ok {
+		if logfile != nil {
+			_, err := logfile.WriteString(fmt.Sprintf("uplink_upload_write: failed to retrieve upload object\n"))
+			if err != nil {
+				return C.UplinkWriteResult{
+					error: mallocError(err),
+				}
+			}
+		}
 		return C.UplinkWriteResult{
 			error: mallocError(ErrInvalidHandle.New("upload")),
 		}
@@ -116,6 +161,14 @@ func uplink_upload_write(upload *C.UplinkUpload, bytes unsafe.Pointer, length C.
 
 	ilength, ok := safeConvertToInt(length)
 	if !ok {
+		if logfile != nil {
+			_, err := logfile.WriteString(fmt.Sprintf("uplink_upload_write: length is too large\n"))
+			if err != nil {
+				return C.UplinkWriteResult{
+					error: mallocError(err),
+				}
+			}
+		}
 		return C.UplinkWriteResult{
 			error: mallocError(ErrInvalidArg.New("length too large")),
 		}
@@ -129,8 +182,8 @@ func uplink_upload_write(upload *C.UplinkUpload, bytes unsafe.Pointer, length C.
 
 	n, err := up.upload.Write(buf)
 	if err != nil {
-		if up.logfile != nil {
-			_, err := up.logfile.WriteString(fmt.Sprintf("%+v\n", err))
+		if logfile != nil {
+			_, err := logfile.WriteString(fmt.Sprintf("%+v\n", err))
 			if err != nil {
 				return C.UplinkWriteResult{
 					error: mallocError(err),
@@ -139,8 +192,8 @@ func uplink_upload_write(upload *C.UplinkUpload, bytes unsafe.Pointer, length C.
 		}
 	}
 
-	if up.logfile != nil {
-		_, err := up.logfile.WriteString(fmt.Sprintf("Uploaded '%d' bytes\n", ilength))
+	if logfile != nil {
+		_, err := logfile.WriteString(fmt.Sprintf("Uploaded '%d' bytes\n", n))
 		if err != nil {
 			return C.UplinkWriteResult{
 				error: mallocError(err),
@@ -158,14 +211,22 @@ func uplink_upload_write(upload *C.UplinkUpload, bytes unsafe.Pointer, length C.
 //
 //export uplink_upload_commit
 func uplink_upload_commit(upload *C.UplinkUpload) *C.UplinkError {
+	logfile := uplink_log_file()
+
 	up, ok := universe.Get(upload._handle).(*Upload)
 	if !ok {
+		if logfile != nil {
+			_, err := up.logfile.WriteString(fmt.Sprintf("uplink_upload_commit: failed to retrieve upload object\n"))
+			if err != nil {
+				return mallocError(err)
+			}
+		}
 		return mallocError(ErrInvalidHandle.New("upload"))
 	}
 
 	err := up.upload.Commit()
 	if err != nil {
-		if up.logfile != nil {
+		if logfile != nil {
 			_, err := up.logfile.WriteString(fmt.Sprintf("%+v", err))
 			if err != nil {
 				return mallocError(err)
@@ -179,8 +240,16 @@ func uplink_upload_commit(upload *C.UplinkUpload) *C.UplinkError {
 //
 //export uplink_upload_abort
 func uplink_upload_abort(upload *C.UplinkUpload) *C.UplinkError {
+	logfile := uplink_log_file()
+
 	up, ok := universe.Get(upload._handle).(*Upload)
 	if !ok {
+		if logfile != nil {
+			_, err := up.logfile.WriteString(fmt.Sprintf("uplink_upload_abort: failed to retrieve upload object\n"))
+			if err != nil {
+				return mallocError(err)
+			}
+		}
 		return mallocError(ErrInvalidHandle.New("upload"))
 	}
 
@@ -200,8 +269,18 @@ func uplink_upload_abort(upload *C.UplinkUpload) *C.UplinkError {
 //
 //export uplink_upload_info
 func uplink_upload_info(upload *C.UplinkUpload) C.UplinkObjectResult {
+	logfile := uplink_log_file()
+
 	up, ok := universe.Get(upload._handle).(*Upload)
 	if !ok {
+		if logfile != nil {
+			_, err := up.logfile.WriteString(fmt.Sprintf("uplink_upload_info: failed to retrieve upload object\n"))
+			if err != nil {
+				return C.UplinkObjectResult{
+					error: mallocError(err),
+				}
+			}
+		}
 		return C.UplinkObjectResult{
 			error: mallocError(ErrInvalidHandle.New("upload")),
 		}
@@ -217,8 +296,16 @@ func uplink_upload_info(upload *C.UplinkUpload) C.UplinkObjectResult {
 //
 //export uplink_upload_set_custom_metadata
 func uplink_upload_set_custom_metadata(upload *C.UplinkUpload, custom C.UplinkCustomMetadata) *C.UplinkError {
+	logfile := uplink_log_file()
+
 	up, ok := universe.Get(upload._handle).(*Upload)
 	if !ok {
+		if logfile != nil {
+			_, err := up.logfile.WriteString(fmt.Sprintf("uplink_upload_set_custom_metadata: failed to retrieve upload object\n"))
+			if err != nil {
+				return mallocError(err)
+			}
+		}
 		return mallocError(ErrInvalidHandle.New("upload"))
 	}
 
